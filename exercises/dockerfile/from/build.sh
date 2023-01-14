@@ -1,0 +1,1 @@
+docker build -t entruval/from exercises/dockerfile/from

@@ -1,0 +1,97 @@
+version: "3.8"
+
+
+# by default docker already created one and assign all to it, without we need to define it
+# network name base on dir name -- network_dir_name
+# will be created when compose have containers
+networks:
+  exercises:
+    name: exercises
+    driver: bridge
+
+volumes:
+  nginx:
+    name: nginx
+  mongo:
+    name: mongo
+
+
+# where we define containers
+services:
+  nginx:
+    # best practice: set container_name the same as service name nginx -> nginx
+    container_name: nginx
+    image: nginx:latest
+    ports: # long syntax
+      - protocol: tcp
+        published: 8080
+        target: 80
+    volumes: # long syntax
+      - type: bind
+        source: "./volumes"
+        target: "/data/db"
+        read_only: false
+    networks: # for custom network
+      - exercises
+    restart: always # no | always | on-failure | unless-stopped
+    healthcheck: # health check will use health check defined in the container
+      test: ["CMD", "curl", "http://localhost:8080/health"] # exec command
+      interval: 5s # do interval health check
+      timeout: 5s # set timeout
+      retries: 3 # set retries
+      start_period: 5s # set start time -- 5s after created
+
+  mongo:
+    container_name: mongo
+    image: mongo:latest
+    depends_on: # this will make a requirement containers to be created first before this created
+      - nginx
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: admin
+    volumes:
+      - "./volumes:/data/db"
+    networks:
+      - exercises
+    restart: always
+
+  mongo-express:
+    container_name: mongo-express
+    image: mongo-express:latest
+    depends_on:
+      - mongo
+        nginx
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password
+      ME_CONFIG_MONGODB_SERVER: root
+    networks:
+      - exercises
+    restart: always
+    deploy:
+      resources:
+        reservations:
+          cpus: "0.25"
+          memory: 50M
+        limits:
+          cpus: "0.5"
+          memory: 100M
+
+  from-dockerfile:
+    container_name: from-dockerfile
+    build:
+      context: "../dockerfile/add" # path to dockerfile
+      dockerfile: Dockerfile # dockerfile name
+    image: "entruval/add" # by default random unique name, if we define image attribute container name will follow this
+    environment:
+      - "APP_PORT=8082"
+    ports:
+      - "8082:8082"
+
+
+

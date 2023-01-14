@@ -1,0 +1,1 @@
+docker build -t entruval/run exercises/dockerfile/run
